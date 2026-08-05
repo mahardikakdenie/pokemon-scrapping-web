@@ -1,0 +1,17 @@
+{
+  "name": "lazada-stock-price-scraper",
+  "version": "1.0.0",
+  "description": "Automated web scraper for tracking Lazada Singapore product stock and price changes",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "scrape": "node src/scraper.js",
+    "warm-session": "node src/warm-session.js"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}
