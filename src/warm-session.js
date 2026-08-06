@@ -7,13 +7,8 @@ chromium.use(StealthPlugin());
 
 /**
  * Opens a visible browser window for manual session warm-up.
- * The user should:
- *   1. Browse the Lazada store page normally
- *   2. Solve any CAPTCHA that appears
- *   3. Close the browser window when done
- *
  * The session (cookies, localStorage) is saved to CONFIG.SESSION_DIR
- * and will be reused by the headless scraper on subsequent runs.
+ * and will be reused by the scraper on subsequent runs.
  */
 async function warmSession() {
   console.log('==================================================');
@@ -36,9 +31,10 @@ async function warmSession() {
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-blink-features=AutomationControlled',
+      '--disable-infobars',
       '--start-maximized'
     ],
-    viewport: { width: 1366, height: 768 },
+    viewport: CONFIG.VIEWPORT,
     userAgent: CONFIG.USER_AGENT,
     locale: 'en-SG',
     timezoneId: 'Asia/Singapore'

@@ -7,11 +7,16 @@
   "scripts": {
     "start": "node src/index.js",
     "scrape": "node src/scraper.js",
-    "warm-session": "node src/warm-session.js"
+    "warm-session": "node src/warm-session.js",
+    "import-cookies": "node src/import-cookies.js",
+    "refresh-session": "node src/session-refresh.js",
+    "auto-refresh": "node src/session-scheduler.js",
+    "session-status": "node -e \"import('./src/session-utils.js').then(m => { const s = m.readSessionStatus(); console.log(s ? JSON.stringify(s, null, 2) : 'No session status found.'); })\""
   },
   "dependencies": {
     "playwright": "^1.40.0",
     "playwright-extra": "^4.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "nodemailer": "^6.9.10"
   }
 }
