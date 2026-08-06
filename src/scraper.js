@@ -112,13 +112,18 @@ export async function scrapeLazadaProductsViaAPI() {
         const fullUrl = item.itemUrl.startsWith('http') ? item.itemUrl : `https:${item.itemUrl}`;
         const isInStock = item.inStock === true;
 
+        // Extract exact available quantity or stock count indicator
+        const qtyVal = item.quantity || item.stock || item.skuQuantity || (item.sku && item.sku.stock) || item.restQuantity;
+        const formattedQty = qtyVal !== undefined && qtyVal !== null ? `${qtyVal}` : (isInStock ? 'Available (1+)' : '0');
+
         allProducts.push({
           id: item.itemId || item.nid || `prod-${allProducts.length + 1}`,
           title: item.name,
           price: item.priceShow || `$${item.price}`,
           originalPrice: item.originalPriceShow || item.priceShow || `$${item.price}`,
           stockStatus: isInStock ? 'In Stock' : 'Out of Stock',
-          stockQuantity: isInStock ? 'Available' : '0',
+          quantity: formattedQty,
+          stockQuantity: formattedQty,
           inStock: isInStock,
           url: fullUrl,
           imageUrl: item.image,

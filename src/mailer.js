@@ -33,12 +33,6 @@ export async function sendEmail({ subject, htmlContent }) {
 
 /**
  * Send Event Comparison Notification Email (New Products, Stock Increases, Highlights)
- * 
- * @param {Object} eventData
- * @param {Array} eventData.newProducts
- * @param {Array} eventData.stockIncreases
- * @param {Array} eventData.priceHighlights
- * @param {Array} eventData.checkoutResults
  */
 export async function sendComparisonEventEmail({ newProducts = [], stockIncreases = [], priceHighlights = [], checkoutResults = [] }) {
   let subjectPrefix = '[Lazada Bot - HIGHLIGHT]';
@@ -48,14 +42,13 @@ export async function sendComparisonEventEmail({ newProducts = [], stockIncrease
 
   const subject = `${subjectPrefix} Detected ${newProducts.length} New Item(s), ${stockIncreases.length} Stock Increase(s)`;
 
-  // Render New Products Section
   const newProductsHtml = newProducts.length > 0 ? `
     <div style="margin-bottom: 20px; background: #ebf8ff; border-left: 5px solid #3182ce; padding: 15px; border-radius: 4px;">
       <h3 style="margin-top: 0; color: #2b6cb0;">🆕 NEW PRODUCTS DETECTED (${newProducts.length})</h3>
       <ul>
         ${newProducts.map(p => `
           <li>
-            <b>${p.title}</b> - Price: <b>${p.price}</b> | Status: <b>${p.stockStatus}</b> 
+            <b>${p.title}</b> - Price: <b>${p.price}</b> | Quantity: <b>${p.quantity || p.stockQuantity}</b> | Status: <b>${p.stockStatus}</b> 
             (<a href="${p.url}">View Product</a>)
           </li>
         `).join('')}
@@ -63,14 +56,13 @@ export async function sendComparisonEventEmail({ newProducts = [], stockIncrease
     </div>
   ` : '';
 
-  // Render Stock Increase Section
   const stockIncreaseHtml = stockIncreases.length > 0 ? `
     <div style="margin-bottom: 20px; background: #feebc8; border-left: 5px solid #dd6b20; padding: 15px; border-radius: 4px;">
       <h3 style="margin-top: 0; color: #c05621;">📈 STOCK INCREASE / BACK IN STOCK (${stockIncreases.length})</h3>
       <ul>
         ${stockIncreases.map(item => `
           <li>
-            <b>${item.product.title}</b> - Price: <b>${item.product.price}</b> | Reason: <b>${item.reason}</b> 
+            <b>${item.product.title}</b> - Price: <b>${item.product.price}</b> | Quantity: <b>${item.product.quantity || item.product.stockQuantity}</b> | Reason: <b>${item.reason}</b> 
             (<a href="${item.product.url}">View Product</a>)
           </li>
         `).join('')}
@@ -78,7 +70,6 @@ export async function sendComparisonEventEmail({ newProducts = [], stockIncrease
     </div>
   ` : '';
 
-  // Render Price Highlights Section
   const priceHighlightsHtml = priceHighlights.length > 0 ? `
     <div style="margin-bottom: 20px; background: #e6fffa; border-left: 5px solid #319795; padding: 15px; border-radius: 4px;">
       <h3 style="margin-top: 0; color: #234e52;">🏷️ PRICE / PROPERTY HIGHLIGHTS (${priceHighlights.length})</h3>
@@ -93,10 +84,9 @@ export async function sendComparisonEventEmail({ newProducts = [], stockIncrease
     </div>
   ` : '';
 
-  // Render Checkout Executions Section
   const checkoutHtml = checkoutResults.length > 0 ? `
     <div style="margin-bottom: 20px; background: #d4edda; border-left: 5px solid #28a745; padding: 15px; border-radius: 4px;">
-      <h3 style="margin-top: 0; color: #155724;">🛒 AUTO-CHECKOUT EXECUTION SUMMARY (${checkoutResults.length})</h3>
+      <h3 style="margin-top: 0; color: #155724;">🛒 AUTO-CHECKOUT & FINAL PAYMENT SUMMARY (${checkoutResults.length})</h3>
       <ul>
         ${checkoutResults.map(res => `
           <li>
@@ -141,7 +131,7 @@ export async function sendComparisonEventEmail({ newProducts = [], stockIncrease
 }
 
 /**
- * Send Stock & API Check Summary Email with full table & highlighted in-stock items.
+ * Send Stock & API Check Summary Email with full table & highlighted in-stock items + Quantity column.
  */
 export async function sendStockSummaryEmail(allProducts, inStockProducts, totalPagesChecked) {
   const hasInStock = inStockProducts.length > 0;
@@ -167,9 +157,9 @@ export async function sendStockSummaryEmail(allProducts, inStockProducts, totalP
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 12px; color: #6c757d;">${index + 1}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; ${titleStyle}">${p.title}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: right; ${priceStyle}">${p.price}</td>
-        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: right; color: #6c757d; font-size: 12px;">${p.originalPrice || '-'}</td>
+        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-weight: bold;">${p.quantity || p.stockQuantity || 'N/A'}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${statusBadge}</td>
-        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 12px; color: #495057;">${p.soldCount || p.stockQuantity || '0'}</td>
+        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 12px; color: #495057;">${p.soldCount || '0'}</td>
         <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;"><a href="${p.url}" style="color: #007bff; text-decoration: none; font-weight: bold;">View</a></td>
       </tr>
     `;
@@ -215,12 +205,12 @@ export async function sendStockSummaryEmail(allProducts, inStockProducts, totalP
           <thead>
             <tr>
               <th style="width: 5%; text-align: center;">#</th>
-              <th style="width: 45%;">Product Title</th>
+              <th style="width: 40%;">Product Title</th>
               <th style="width: 10%; text-align: right;">Price</th>
-              <th style="width: 10%; text-align: right;">Orig. Price</th>
-              <th style="width: 12%; text-align: center;">Stock Status</th>
-              <th style="width: 10%; text-align: center;">Sold / Detail</th>
-              <th style="width: 8%; text-align: center;">Link</th>
+              <th style="width: 12%; text-align: center;">Quantity</th>
+              <th style="width: 13%; text-align: center;">Stock Status</th>
+              <th style="width: 10%; text-align: center;">Sold</th>
+              <th style="width: 10%; text-align: center;">Link</th>
             </tr>
           </thead>
           <tbody>
@@ -243,21 +233,22 @@ export async function sendStockSummaryEmail(allProducts, inStockProducts, totalP
  * Send Checkout Success/Attempt Email
  */
 export async function sendCheckoutEmail(product, checkoutUrl, status = 'Reached Checkout Page') {
-  const subject = `[Lazada Bot - URGENT] Checkout ${status}: ${product.title}`;
+  const subject = `[Lazada Bot - URGENT] Checkout Status: ${status} - ${product.title}`;
   
   const htmlContent = `
     <h2 style="color: #2b6cb0;">🚀 Auto-Checkout Triggered</h2>
-    <p>The bot detected stock for the target product and proceeded to checkout!</p>
+    <p>The bot detected stock for the target product and executed checkout sequence!</p>
 
     <div style="background: #edf2f7; padding: 15px; border-radius: 8px; margin: 15px 0;">
       <p><b>Product Title:</b> ${product.title}</p>
       <p><b>Price:</b> ${product.price}</p>
+      <p><b>Quantity Available:</b> ${product.quantity || product.stockQuantity || 'N/A'}</p>
       <p><b>Product URL:</b> <a href="${product.url}">${product.url}</a></p>
       <p><b>Current Page URL:</b> ${checkoutUrl}</p>
       <p><b>Status:</b> <span style="color: green;"><b>${status}</b></span></p>
     </div>
 
-    <p style="color: #c53030;"><b>Please check your Lazada browser session to finalize payment if required.</b></p>
+    <p style="color: #c53030;"><b>Please check your Lazada account to verify order confirmation status.</b></p>
   `;
 
   return await sendEmail({ subject, htmlContent });

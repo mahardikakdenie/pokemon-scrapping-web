@@ -41,23 +41,19 @@ export function loadLastHistory() {
 export function saveTimestampedHistory(latestProducts) {
   ensureDataDirsExist();
 
-  // Generate ISO format date string safe for Windows filenames (YYYY-MM-DD_HH-mm-ss)
   const now = new Date();
   const dateStr = now.toISOString().replace(/T/, '_').replace(/:/g, '-').replace(/\..+/, '');
   const fileName = `${dateStr}_product_history.json`;
   const filePath = path.join(CONFIG.HISTORY_DIR, fileName);
 
-  // 1. Save timestamped history file
   fs.writeFileSync(filePath, JSON.stringify(latestProducts, null, 2), 'utf-8');
   console.log(`[Storage] Saved timestamped history: ${filePath}`);
 
-  // 2. Map current array into object map by product ID
   const currentMap = {};
   for (const item of latestProducts) {
     currentMap[item.id] = item;
   }
 
-  // 3. Update last history snapshot file
   fs.writeFileSync(CONFIG.LAST_HISTORY_FILE, JSON.stringify(currentMap, null, 2), 'utf-8');
   console.log(`[Storage] Updated snapshot file: ${CONFIG.LAST_HISTORY_FILE}`);
 
@@ -83,12 +79,10 @@ export function compareSnapshots(previousMap, currentProducts) {
     const prevItem = previousMap[item.id];
 
     if (!prevItem) {
-      // New Product detected
       if (!isInitialRun) {
         newProducts.push(item);
       }
     } else {
-      // Check stock increase or back-in-stock transition
       const prevInStock = prevItem.inStock === true;
       const currInStock = item.inStock === true;
 
@@ -99,7 +93,6 @@ export function compareSnapshots(previousMap, currentProducts) {
         });
       }
 
-      // Check price changes or other highlights
       if (prevItem.price !== item.price) {
         priceHighlights.push({
           product: item,
@@ -125,7 +118,8 @@ export function compareSnapshots(previousMap, currentProducts) {
 }
 
 /**
- * Displays scraped products in console table
+ * Displays scraped products in console table with Quantity column
+ * @param {Array<any>} products 
  */
 export function displayProductTable(products) {
   if (!products || products.length === 0) {
@@ -140,7 +134,8 @@ export function displayProductTable(products) {
     'Price': item.price,
     'Original Price': item.originalPrice !== item.price ? item.originalPrice : '-',
     'Stock Status': item.stockStatus,
-    'Stock Detail': item.stockQuantity || '-'
+    'Quantity': item.quantity || item.stockQuantity || 'N/A',
+    'Sold Count': item.soldCount || '-'
   }));
 
   console.table(tableData);
