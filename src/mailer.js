@@ -230,33 +230,64 @@ export async function sendStockSummaryEmail(allProducts, inStockProducts, totalP
 }
 
 /**
- * Send Checkout Success/Attempt Email
+ * Send Checkout Success/Attempt Email with PayNow QR & Payment Direct Link
  */
 export async function sendCheckoutEmail(product, checkoutUrl, status = 'Reached Checkout Page') {
-  const subject = `[Lazada Bot - URGENT] Checkout Status: ${status} - ${product.title}`;
-  
-  const htmlContent = `
-    <h2 style="color: #2b6cb0;">🚀 Auto-Checkout Triggered</h2>
-    <p>The bot detected stock for the target product and executed checkout sequence!</p>
+  const isPayNow = checkoutUrl && (checkoutUrl.includes('order-received') || checkoutUrl.includes('payStatus'));
+  const subjectPrefix = isPayNow ? '💳 [PAYNOW PAYMENT REQUIRED]' : '🚀 [AUTO-CHECKOUT TRIGGERED]';
+  const subject = `${subjectPrefix} ${status} - ${product.title}`;
 
-    <div style="background: #edf2f7; padding: 15px; border-radius: 8px; margin: 15px 0;">
-      <p><b>Product Title:</b> ${product.title}</p>
-      <p><b>Price:</b> ${product.price}</p>
-      <p><b>Quantity Available:</b> ${product.quantity || product.stockQuantity || 'N/A'}</p>
-      <p><b>Product URL:</b> <a href="${product.url}">${product.url}</a></p>
-      <p><b>Current Page URL:</b> <a href="${checkoutUrl}" target="_blank">${checkoutUrl}</a></p>
-      <p><b>Status:</b> <span style="color: green;"><b>${status}</b></span></p>
-    </div>
+  const payNowAlertHtml = checkoutUrl ? `
+    <div style="background-color: #fff3cd; border-left: 6px solid #ffc107; padding: 20px; border-radius: 6px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #856404; font-size: 18px;">💳 PAYNOW TRANSFER / PAYMENT ACTION REQUIRED</h3>
+      <p style="color: #856404; font-size: 14px; margin-bottom: 15px;">
+        The order has been generated! Click the button below to open your Lazada payment page directly and scan the <b>PayNow QR Barcode</b> to complete your payment:
+      </p>
 
-    ${checkoutUrl ? `
-      <div style="margin: 25px 0; text-align: center;">
-        <a href="${checkoutUrl}" target="_blank" style="background-color: #f57224; color: #ffffff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
-          👉 CLICK HERE TO PAY NOW / VIEW ORDER
+      <div style="text-align: center; margin: 20px 0;">
+        <a href="${checkoutUrl}" target="_blank" style="background: linear-gradient(135deg, #f57224 0%, #d04b00 100%); color: #ffffff; padding: 16px 32px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 18px; display: inline-block; box-shadow: 0 4px 10px rgba(245, 114, 36, 0.4); text-transform: uppercase; letter-spacing: 0.5px;">
+          👉 CLICK HERE TO PAY NOW / VIEW QR CODE
         </a>
       </div>
-    ` : ''}
 
-    <p style="color: #c53030;"><b>Please click the button above or check your Lazada account to complete your payment.</b></p>
+      <p style="font-size: 12px; color: #666; margin-top: 15px;">
+        <b>Direct Payment URL:</b><br/>
+        <a href="${checkoutUrl}" target="_blank" style="color: #007bff; word-break: break-all; font-family: monospace;">${checkoutUrl}</a>
+      </p>
+    </div>
+  ` : '';
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 800px; background: #ffffff; margin: 0 auto; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h2 style="color: #2b6cb0; margin-top: 0;">🚀 Auto-Checkout Status Report</h2>
+        <p>The bot detected stock for the target product and executed the purchase sequence!</p>
+
+        ${payNowAlertHtml}
+
+        <div style="background: #edf2f7; padding: 15px; border-radius: 8px; margin: 15px 0; font-size: 14px;">
+          <p style="margin: 5px 0;"><b>Product Title:</b> ${product.title}</p>
+          <p style="margin: 5px 0;"><b>Price:</b> ${product.price}</p>
+          <p style="margin: 5px 0;"><b>Quantity Available:</b> ${product.quantity || product.stockQuantity || 'N/A'}</p>
+          <p style="margin: 5px 0;"><b>Product Link:</b> <a href="${product.url}" target="_blank">${product.url}</a></p>
+          <p style="margin: 5px 0;"><b>Checkout Status:</b> <span style="color: #28a745; font-weight: bold;">${status}</span></p>
+        </div>
+
+        <p style="color: #c53030; font-size: 13px; text-align: center;">
+          <b>Please click the Pay Now button above to scan your PayNow QR code or check your Lazada SG account.</b>
+        </p>
+      </div>
+    </body>
+    </html>
   `;
 
   return await sendEmail({ subject, htmlContent });
@@ -473,10 +504,12 @@ export async function sendConsolidatedPurchaseEmail({
         ? `<br/><small style="color:#6c757d;">Wallet: ${res.walletBalanceBefore} → ${res.walletBalanceAfter} (Deducted: ${res.walletDeductionAmount})</small>`
         : (res.walletSelected ? '<br/><small style="color:#6c757d;">Wallet: Selected (balance change unverified)</small>' : '');
 
+      const isPayNowItem = res.checkoutUrl && (res.checkoutUrl.includes('order-received') || res.checkoutUrl.includes('payStatus'));
+      const buttonLabel = isPayNowItem ? '💳 CLICK TO PAY NOW / VIEW PAYNOW QR' : '👉 CLICK TO PAY / VIEW ORDER';
       const payButtonHtml = res.checkoutUrl ? `
-        <div style="margin-top: 8px;">
-          <a href="${res.checkoutUrl}" target="_blank" style="background-color: #f57224; color: #ffffff; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 12px; display: inline-block;">
-            👉 CLICK TO PAY / VIEW ORDER
+        <div style="margin-top: 10px;">
+          <a href="${res.checkoutUrl}" target="_blank" style="background: linear-gradient(135deg, #f57224 0%, #e65100 100%); color: #ffffff; padding: 8px 16px; border-radius: 5px; text-decoration: none; font-weight: bold; font-size: 13px; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+            ${buttonLabel}
           </a>
         </div>
       ` : '';

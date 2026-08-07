@@ -18,6 +18,7 @@ export const CONFIG = {
 
   // Auto Checkout Flags
   AUTO_BUY_ENABLED: process.env.AUTO_BUY_ENABLED !== 'false',
+  ALLOW_REPURCHASE_IN_STOCK: process.env.ALLOW_REPURCHASE_IN_STOCK !== 'false',
   USE_LAZADA_POINTS: process.env.USE_LAZADA_POINTS !== 'false',
   PAYMENT_METHOD: (process.env.PAYMENT_METHOD || 'LAZADA_WALLET').toUpperCase(),
   TEST_LIMIT_PRODUCTS: parseInt(process.env.TEST_LIMIT_PRODUCTS || '0', 10),

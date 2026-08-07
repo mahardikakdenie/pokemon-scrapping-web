@@ -93,17 +93,21 @@ async function runScrapeCycle() {
       }
 
       // Trigger C: Any currently in-stock product that is NOT already in the
-      // trigger list from Trigger A or B, and has NOT been purchased/attempted previously.
-      // This ensures that products which have been in-stock since previous cycles are
-      // still purchased once, without looping continuously.
+      // trigger list from Trigger A or B. If CONFIG.ALLOW_REPURCHASE_IN_STOCK is true,
+      // allow items to trigger checkout even if previously recorded in purchasedSet.
       const purchasedSet = loadPurchasedProductIds();
       const alreadyTriggeredIds = new Set(purchaseTriggers.map((t) => t.product.id));
       for (const product of inStockProducts) {
-        if (!alreadyTriggeredIds.has(product.id) && !purchasedSet.has(product.id)) {
-          purchaseTriggers.push({
-            product,
-            reason: 'In-Stock & Affordable (Wallet Budget Check)',
-          });
+        if (!alreadyTriggeredIds.has(product.id)) {
+          const isPreviouslyPurchased = purchasedSet.has(product.id);
+          if (CONFIG.ALLOW_REPURCHASE_IN_STOCK || !isPreviouslyPurchased) {
+            purchaseTriggers.push({
+              product,
+              reason: isPreviouslyPurchased
+                ? 'In-Stock Re-Purchase (Allow Repurchase Active)'
+                : 'In-Stock & Affordable (Wallet Budget Check)',
+            });
+          }
         }
       }
 

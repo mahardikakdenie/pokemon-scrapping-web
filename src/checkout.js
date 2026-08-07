@@ -630,95 +630,105 @@ export async function selectPayNowTransferPayment(page) {
   console.log('[Checkout] ══════════════════════════════════════════════════════');
 
   try {
-    // ── STEP 1: Click "View All Methods" Button if Cashier Drawer is Not Open ──
-    const drawerTitleSelector = '.mini-navigator-title';
-    const isDrawerAlreadyOpen = await page.evaluate((sel) => {
-      const el = document.querySelector(sel);
-      return el && el.textContent.includes('Select Payment Method');
-    }, drawerTitleSelector).catch(() => false);
-
-    if (!isDrawerAlreadyOpen) {
-      console.log('[Checkout] Cashier drawer is not open. Looking for "View All Methods" button...');
-      
-      const viewAllSelectors = [
-        'button:has-text("View All Methods")',
-        'div:has-text("View All Methods")',
-        'span:has-text("View All Methods")',
-        'button:has-text("Lihat Semua Metode")',
-        'span:has-text("Lihat Semua")',
-        'div:has-text("Lihat Semua")',
-        '.cashier-drawer-entry',
-        '[class*="view-all"]',
-        '[class*="viewAll"]',
-        '.methods .method-item:has-text("View All")',
-      ];
-
-      let viewAllClicked = false;
-      for (const selector of viewAllSelectors) {
-        try {
-          const button = await page.$(selector);
-          if (button && (await button.isVisible().catch(() => false))) {
-            console.log(`[Checkout] Clicking "View All Methods" via selector: "${selector}"`);
-            await button.click();
-            viewAllClicked = true;
-            await randomDelay(2000, 3000);
-            break;
-          }
-        } catch (e) {
-          // Try next selector
-        }
+    // ── SUB-STEP A: Check if PayNow Transfer is ALREADY the active payment method ──
+    console.log('[Checkout] Checking if PayNow Transfer is already the active payment method...');
+    const isPayNowAlreadySelected = await page.evaluate(() => {
+      const selectedCard = document.querySelector('.payment-card-container .card-container.selected');
+      if (selectedCard) {
+        const cardText = selectedCard.textContent || '';
+        return cardText.includes('PayNow Transfer');
       }
+      return false;
+    }).catch(() => false);
 
-      if (!viewAllClicked) {
-        console.warn('[Checkout] "View All Methods" button not found or already open. Attempting direct method search...');
+    if (isPayNowAlreadySelected) {
+      console.log('[Checkout] ✅ PayNow Transfer is ALREADY the active payment method. No action needed.');
+      return true;
+    }
+
+    console.log('[Checkout] PayNow Transfer is NOT the active method. Opening payment methods drawer...');
+
+    // ── SUB-STEP B: Click "View all methods >" link to open the payment drawer ──
+    const viewAllMethodsSelectors = [
+      'span.payment-card-header-action',
+      '.payment-card-header-action',
+      'span:has-text("View all methods")',
+      'span:has-text("View all methods >")',
+    ];
+
+    let viewAllClicked = false;
+    for (const selector of viewAllMethodsSelectors) {
+      try {
+        const el = await page.$(selector);
+        if (el && (await el.isVisible().catch(() => false))) {
+          console.log(`[Checkout] Clicking "View all methods >" via: "${selector}"`);
+          await el.click();
+          viewAllClicked = true;
+          await randomDelay(2000, 3000);
+          break;
+        }
+      } catch (e) {
+        // Try next
       }
     }
 
-    // ── STEP 2: Wait for "Select Payment Method" Overlay ──
-    console.log('[Checkout] Waiting for "Select Payment Method" overlay drawer...');
-    await page.waitForSelector('.cashier-drawer, .next-overlay-inner, .protals-methods', {
+    if (!viewAllClicked) {
+      console.warn('[Checkout] Could not find "View all methods >" button. Attempting direct drawer search...');
+    }
+
+    // ── SUB-STEP C: Wait for the payment methods overlay/drawer to render ──
+    console.log('[Checkout] Waiting for payment methods drawer (div.protals-methods) to appear...');
+    await page.waitForSelector('.protals-methods', {
       visible: true,
       timeout: 10000,
     }).catch(() => {
-      console.warn('[Checkout] Overlay selector wait timed out. Proceeding with element checks...');
+      console.warn('[Checkout] protals-methods drawer wait timed out. Continuing anyway...');
     });
 
-    // ── STEP 3: Click "PayNow Transfer" Method Item ──
-    console.log('[Checkout] Searching for "PayNow Transfer" item in payment list...');
+    // ── SUB-STEP D: Find and click "PayNow Transfer" in the methods list ──
+    console.log('[Checkout] Searching for "PayNow Transfer" item in payment methods list...');
 
-    const payNowSelectors = [
-      // Primary text match inside method item wrapper
+    const payNowMethodSelectors = [
+      '.method-item .title.bold:has-text("PayNow Transfer")',
       '.method-item:has-text("PayNow Transfer")',
       'div.main-content-wrapper:has-text("PayNow Transfer")',
-      'div.title.bold:has-text("PayNow Transfer")',
-      // Icon-based match (exact PayNow icon asset URL)
+      'div.title-wrapper:has-text("PayNow Transfer")',
       'img[src*="O1CN01OKRYNA1beT0XaLZ24"]',
-      // Container fallback
-      '.methods .method-item .title:has-text("PayNow")',
     ];
 
     let payNowClicked = false;
-    for (const selector of payNowSelectors) {
+    for (const selector of payNowMethodSelectors) {
       try {
         const item = await page.$(selector);
         if (item && (await item.isVisible().catch(() => false))) {
-          console.log(`[Checkout] Found PayNow Transfer item via selector: "${selector}". Clicking...`);
+          console.log(`[Checkout] Found "PayNow Transfer" via: "${selector}". Clicking...`);
           await item.click();
           payNowClicked = true;
           await randomDelay(2000, 3000);
           break;
         }
       } catch (e) {
-        // Try next selector
+        // Try next
       }
     }
 
     if (!payNowClicked) {
-      // Fallback evaluate-click using JavaScript DOM search
-      console.log('[Checkout] Standard click failed. Attempting DOM evaluate click for PayNow Transfer...');
+      console.log('[Checkout] Selector click failed. Attempting DOM evaluate click for "PayNow Transfer"...');
       payNowClicked = await page.evaluate(() => {
-        const items = Array.from(document.querySelectorAll('.method-item, .main-content-wrapper, .title'));
-        for (const item of items) {
+        const titles = Array.from(document.querySelectorAll('.method-item .title.bold'));
+        for (const title of titles) {
+          if (title.textContent && title.textContent.trim().includes('PayNow Transfer')) {
+            const methodItem = title.closest('.method-item');
+            if (methodItem) {
+              methodItem.click();
+              return true;
+            }
+            title.click();
+            return true;
+          }
+        }
+        const allItems = Array.from(document.querySelectorAll('.method-item'));
+        for (const item of allItems) {
           if (item.textContent && item.textContent.includes('PayNow Transfer')) {
             item.click();
             return true;
@@ -729,67 +739,85 @@ export async function selectPayNowTransferPayment(page) {
     }
 
     if (!payNowClicked) {
-      throw new Error('Could not find or click "PayNow Transfer" payment method option in drawer.');
+      throw new Error('Could not find or click "PayNow Transfer" in the payment methods drawer.');
     }
 
-    console.log('[Checkout] ✅ Clicked "PayNow Transfer" payment item.');
+    console.log('[Checkout] ✅ Clicked "PayNow Transfer" payment method item.');
 
-    // ── STEP 4: Wait for PayNow Sub-Drawer / Instruction Panel ──
-    console.log('[Checkout] Waiting for PayNow instruction drawer & "Confirm Selection" button...');
-    await page.waitForSelector('.plcae-order .btn, div.btn:has-text("Confirm Selection")', {
-      visible: true,
-      timeout: 10000,
-    }).catch(() => {});
+    // ── SUB-STEP E: Wait for the PayNow confirmation sub-drawer to appear ──
+    console.log('[Checkout] Waiting for "Confirm Selection" button to appear in sub-drawer...');
+    await randomDelay(2000, 3000);
 
-    // ── STEP 5: Click "Confirm Selection" Button ──
-    const confirmButtonSelectors = [
-      '.plcae-order .btn',
+    const confirmSelectors = [
       'div.btn:has-text("Confirm Selection")',
-      'div.btn:has-text("Konfirmasi Pilihan")',
+      '.plcae-order .btn',
       '.order-wrap .plcae-order .btn',
-      '.wrap-container .btn',
+      'div.btn:has-text("Konfirmasi Pilihan")',
     ];
 
     let confirmClicked = false;
-    for (const selector of confirmButtonSelectors) {
+    for (const selector of confirmSelectors) {
       try {
         const btn = await page.$(selector);
         if (btn && (await btn.isVisible().catch(() => false))) {
-          console.log(`[Checkout] Clicking "Confirm Selection" button via selector: "${selector}"`);
+          console.log(`[Checkout] Clicking "Confirm Selection" via: "${selector}"`);
           await btn.click();
           confirmClicked = true;
-          await randomDelay(2000, 4000);
+          await randomDelay(3000, 5000);
           break;
         }
       } catch (e) {
-        // Try next selector
+        // Try next
       }
     }
 
     if (!confirmClicked) {
-      // Fallback evaluate click
-      console.log('[Checkout] Attempting DOM evaluate click for "Confirm Selection" button...');
+      console.log('[Checkout] Selector click failed. Attempting DOM evaluate for "Confirm Selection"...');
       confirmClicked = await page.evaluate(() => {
-        const btns = Array.from(document.querySelectorAll('.plcae-order .btn, .btn, div'));
-        for (const b of btns) {
-          if (b.textContent && (b.textContent.trim() === 'Confirm Selection' || b.textContent.trim() === 'Konfirmasi Pilihan')) {
-            b.click();
+        const buttons = Array.from(document.querySelectorAll('div.btn, button'));
+        for (const btn of buttons) {
+          const text = (btn.textContent || '').trim();
+          if (text === 'Confirm Selection' || text === 'Konfirmasi Pilihan') {
+            btn.click();
             return true;
           }
         }
         return false;
       });
+      if (confirmClicked) {
+        await randomDelay(3000, 5000);
+      }
     }
 
     if (!confirmClicked) {
       throw new Error('Could not find or click "Confirm Selection" button after selecting PayNow Transfer.');
     }
 
-    console.log('[Checkout] ✅ "Confirm Selection" button clicked successfully for PayNow Transfer.');
+    console.log('[Checkout] ✅ "Confirm Selection" clicked. PayNow Transfer method is now active.');
+
+    // ── SUB-STEP F: Verify PayNow Transfer is now the active payment card ──
+    console.log('[Checkout] Verifying PayNow Transfer is now the active payment card...');
+    await randomDelay(2000, 3000);
+
+    const isPayNowActive = await page.evaluate(() => {
+      const selectedCard = document.querySelector('.payment-card-container .card-container.selected');
+      if (selectedCard) {
+        const cardText = selectedCard.textContent || '';
+        return cardText.includes('PayNow Transfer');
+      }
+      return false;
+    }).catch(() => false);
+
+    if (isPayNowActive) {
+      console.log('[Checkout] ✅ VERIFIED: PayNow Transfer is confirmed as the active payment method.');
+    } else {
+      console.warn('[Checkout] ⚠️ Could not verify PayNow Transfer as active card. Proceeding anyway...');
+    }
+
     return true;
 
   } catch (error) {
-    console.error(`[Checkout Error] Failed to select PayNow Transfer payment method: ${error.message}`);
+    console.error(`[Checkout Error] Failed to select PayNow Transfer: ${error.message}`);
     return false;
   }
 }
@@ -865,54 +893,90 @@ export async function clickShippingConfirmButton(page) {
  * @returns {Promise<{ orderPlaced: boolean, finalUrl: string, smsVerificationRequired: boolean, statusText: string }>}
  */
 export async function clickPlaceOrderAndPay(page) {
-  console.log('[Checkout] Searching for active "Place Order" / "Buat Pesanan" payment button...');
+  console.log('[Checkout] Searching for active "Place Order" / "PLACE ORDER NOW" payment button...');
 
+  // ── PRE-FLIGHT CHECK: Verify PayNow Transfer is the active payment method ──
+  const activePaymentMethod = await page.evaluate(() => {
+    const selectedCard = document.querySelector('.payment-card-container .card-container.selected');
+    if (selectedCard) {
+      const titleEl = selectedCard.querySelector('.card-title');
+      if (titleEl) return titleEl.textContent.trim();
+      return (selectedCard.textContent || '').substring(0, 100).trim();
+    }
+    return 'UNKNOWN';
+  }).catch(() => 'UNKNOWN');
+
+  console.log(`[Checkout] Active payment method detected: "${activePaymentMethod}"`);
+
+  if (activePaymentMethod === 'UNKNOWN') {
+    console.warn('[Checkout] ⚠️ Could not detect active payment method. Proceeding with Place Order anyway...');
+  }
+
+  // ── CLICK "PLACE ORDER NOW" BUTTON ──
   const placeOrderSelectors = [
+    'div:has-text("PLACE ORDER NOW")',
+    'div:has-text("PLACE ORDER")',
     'button.btn-place-order',
     '#btn-place-order',
     '.automation-btn-place-order',
-    // Support div tags and case-insensitive text matches for Place Order variations
-    'div:has-text("PLACE ORDER NOW")',
-    'div:has-text("PLACE ORDER")',
-    'div:has-text("Place Order")',
     'button:has-text("Place Order")',
     'button:has-text("Buat Pesanan")',
     'button:has-text("Pay Now")',
     'button:has-text("Bayar Sekarang")',
     'button.next-btn-primary:has-text("Place Order")',
     'button.next-btn-primary:has-text("Buat Pesanan")',
-    // Generic fallback for any element matching critical checkout text
     '*:has-text("PLACE ORDER NOW")',
     '*:has-text("PLACE ORDER")',
   ];
 
-
   let orderClicked = false;
-  for (const selector of placeOrderSelectors) {
-    try {
-      const button = await page.$(selector);
-      if (button) {
-        const isVisible = await button.isVisible().catch(() => false);
-        const isDisabled = await button.getAttribute('disabled').catch(() => null);
 
-        if (isVisible && !isDisabled) {
-          console.log(`[Checkout] Found active payment button via selector: ${selector}. Submitting order now...`);
-          await button.click();
-          orderClicked = true;
-          break;
+  // Primary: Execute DOM click directly on the exact orange PLACE ORDER NOW div
+  console.log('[Checkout] Executing precise DOM click on "PLACE ORDER NOW" orange button...');
+  orderClicked = await page.evaluate(() => {
+    const divs = Array.from(document.querySelectorAll('div, button'));
+    for (const el of divs) {
+      const text = (el.textContent || '').trim();
+      if (text === 'PLACE ORDER NOW' || text === 'PLACE ORDER') {
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+          el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+          el.click();
+          return true;
         }
       }
-    } catch (error) {
-      // Continue to next selector
+    }
+    return false;
+  }).catch(() => false);
+
+  if (!orderClicked) {
+    // Secondary fallback: Try standard Playwright selector click with force option
+    for (const selector of placeOrderSelectors) {
+      try {
+        const button = await page.$(selector);
+        if (button) {
+          const isVisible = await button.isVisible().catch(() => false);
+          if (isVisible) {
+            console.log(`[Checkout] Clicking payment button via selector: ${selector}`);
+            await button.click({ force: true });
+            orderClicked = true;
+            break;
+          }
+        }
+      } catch (error) {
+        // Continue to next selector
+      }
     }
   }
 
   if (!orderClicked) {
-    console.warn('[Checkout] Place Order button not clickable or payment option required.');
-    return { orderPlaced: false, finalUrl: page.url(), smsVerificationRequired: false, statusText: 'Place Order button not found' };
+    console.warn('[Checkout] ❌ "PLACE ORDER NOW" button not found or not clickable.');
+    return { orderPlaced: false, finalUrl: page.url(), smsVerificationRequired: false, statusText: 'FAILED: PLACE ORDER NOW button not found or not clickable' };
   }
 
-  console.log('[Checkout] Waiting for payment confirmation, URL redirect, or SMS Verification popup...');
+  console.log('[Checkout] ✅ "PLACE ORDER NOW" button clicked. Waiting for PayNow QR / order confirmation page redirection...');
   await randomDelay(3000, 5000);
 
   // ── DETECT SMS VERIFICATION MODAL ──
@@ -951,27 +1015,45 @@ export async function clickPlaceOrderAndPay(page) {
     };
   }
 
-  // ── WAIT FOR URL REDIRECT IF NO SMS POPUP ──
+  // ── WAIT FOR URL REDIRECT TO ORDER-RECEIVED-NEW PAGE (PayNow QR Page) ──
+  console.log('[Checkout] Waiting for redirect to order-received-new / PayNow QR payment page...');
   await page.waitForURL((url) => {
     const targetUrl = url.toString().toLowerCase();
     return (
-      targetUrl.includes('success') ||
-      targetUrl.includes('finish') ||
-      targetUrl.includes('confirm') ||
-      targetUrl.includes('thank') ||
-      targetUrl.includes('payment') ||
-      targetUrl.includes('order')
+      targetUrl.includes('order-received-new') ||
+      targetUrl.includes('order-received') ||
+      targetUrl.includes('orderid') ||
+      targetUrl.includes('tradeorderids') ||
+      targetUrl.includes('paystatus')
     );
-  }, { timeout: 20000 }).catch(() => {});
+  }, { timeout: 30000 }).catch(() => {});
 
   const finalUrl = page.url();
-  console.log(`[Checkout] Final page URL after submission: ${finalUrl}`);
+  console.log(`[Checkout] Final page URL after submission wait: ${finalUrl}`);
+
+  // STRICT VALIDATION: orderPlaced is true ONLY if page redirected to order-received-new or contains orderId/tradeOrderIds
+  const isPayNowQRPage = finalUrl.toLowerCase().includes('order-received-new') || finalUrl.toLowerCase().includes('order-received');
+  const hasOrderId = finalUrl.toLowerCase().includes('orderid') || finalUrl.toLowerCase().includes('tradeorderids');
+
+  const orderPlaced = isPayNowQRPage || hasOrderId;
+
+  let statusText;
+  if (orderPlaced && isPayNowQRPage && hasOrderId) {
+    statusText = 'PayNow QR Payment Page Reached — Awaiting Payment via QR Barcode';
+  } else if (orderPlaced) {
+    statusText = 'PayNow Transfer Page Reached (QR Barcode Ready)';
+  } else {
+    statusText = `FAILED: Order submission did not navigate to confirmation page (Current URL: ${finalUrl})`;
+    console.error(`[Checkout Error] ${statusText}`);
+  }
+
+  console.log(`[Checkout] Strict Validation Result: orderPlaced = ${orderPlaced}, Status = ${statusText}`);
 
   return {
-    orderPlaced: true,
+    orderPlaced,
     finalUrl,
     smsVerificationRequired: false,
-    statusText: 'Order Placed / Reached Confirmation Page',
+    statusText,
   };
 }
 
@@ -1092,7 +1174,23 @@ export async function processAutoCheckout(page, product, options = {}) {
     // ── STEP 5: Click "Place Order" / "Buat Pesanan" ───────────────────────
     console.log('\n[Checkout] ── STEP 5/6: Clicking "Place Order" to finalize purchase ──');
     const { orderPlaced, finalUrl, smsVerificationRequired, statusText: orderStatusText } = await clickPlaceOrderAndPay(page);
-    console.log(`[Checkout] STEP 5 DONE: Order placed = ${orderPlaced}, SMS Verification = ${smsVerificationRequired}, Final URL = ${finalUrl}`);
+    console.log(`[Checkout] STEP 5 DONE: Order placed = ${orderPlaced}, SMS Verification = ${smsVerificationRequired}, Payment/Checkout URL = ${finalUrl}`);
+
+    // If order was successfully placed (and no SMS verification is pending), navigate to My Orders for final verification
+    let myOrdersUrlReached = false;
+    if (orderPlaced && !smsVerificationRequired) {
+      try {
+        console.log('\n[Checkout] ── PHASE: Navigating to Lazada My Orders Page for Final Verification ──');
+        console.log('[Checkout] Target URL: https://my.lazada.sg/customer/order/index/');
+        await page.goto('https://my.lazada.sg/customer/order/index/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await randomDelay(3000, 5000);
+        const myOrdersUrl = page.url();
+        console.log(`[Checkout] Successfully arrived at My Orders page: ${myOrdersUrl}`);
+        myOrdersUrlReached = true;
+      } catch (err) {
+        console.error(`[Checkout Verification Error] Failed to navigate to My Orders page: ${err.message}`);
+      }
+    }
 
     // ── STEP 6: Verify Wallet Balance Decreased (Only if Wallet is used) ──
     let walletBalanceAfter = null;
@@ -1130,6 +1228,10 @@ export async function processAutoCheckout(page, product, options = {}) {
       if (walletDecreased) statusParts.push(`Wallet Deducted: ${walletDeductionAmount}`);
     } else if (paymentSelected) {
       statusParts.push(`${selectedMethod} Selected`);
+    }
+
+    if (myOrdersUrlReached) {
+      statusParts.push('VERIFIED ON MY ORDERS PAGE');
     }
 
     const statusText = statusParts.join(' | ');
