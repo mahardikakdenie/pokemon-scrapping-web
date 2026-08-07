@@ -244,11 +244,19 @@ export async function sendCheckoutEmail(product, checkoutUrl, status = 'Reached 
       <p><b>Price:</b> ${product.price}</p>
       <p><b>Quantity Available:</b> ${product.quantity || product.stockQuantity || 'N/A'}</p>
       <p><b>Product URL:</b> <a href="${product.url}">${product.url}</a></p>
-      <p><b>Current Page URL:</b> ${checkoutUrl}</p>
+      <p><b>Current Page URL:</b> <a href="${checkoutUrl}" target="_blank">${checkoutUrl}</a></p>
       <p><b>Status:</b> <span style="color: green;"><b>${status}</b></span></p>
     </div>
 
-    <p style="color: #c53030;"><b>Please check your Lazada account to verify order confirmation status.</b></p>
+    ${checkoutUrl ? `
+      <div style="margin: 25px 0; text-align: center;">
+        <a href="${checkoutUrl}" target="_blank" style="background-color: #f57224; color: #ffffff; padding: 14px 28px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
+          👉 CLICK HERE TO PAY NOW / VIEW ORDER
+        </a>
+      </div>
+    ` : ''}
+
+    <p style="color: #c53030;"><b>Please click the button above or check your Lazada account to complete your payment.</b></p>
   `;
 
   return await sendEmail({ subject, htmlContent });
@@ -384,6 +392,313 @@ export async function sendFailureEmail(error, contextDetails = '') {
 
         <p style="margin-top: 25px; font-size: 12px; color: #a0aec0; text-align: center;">
           Alert generated automatically by Lazada Bot at ${new Date().toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return await sendEmail({ subject, htmlContent });
+}
+
+/**
+ * Sends ONE consolidated email containing:
+ *   1. Purchase summary for all auto-checkout results (success + failed)
+ *   2. Full product inventory table (all scraped products)
+ *
+ * This is called ONCE per scrape cycle to avoid email spam.
+ *
+ * @param {Object} params
+ * @param {Array<Object>} params.checkoutResults - Array of checkout result objects from processAutoCheckout().
+ * @param {Array<Object>} params.allProducts - Complete list of all scraped products.
+ * @param {Array<Object>} params.inStockProducts - Filtered list of in-stock products.
+ * @param {number} params.totalPagesChecked - Number of API pages scraped.
+ * @param {Array<Object>} [params.newProducts=[]] - Newly detected products.
+ * @param {Array<Object>} [params.stockIncreases=[]] - Products with stock increases.
+ * @param {Array<Object>} [params.priceHighlights=[]] - Products with price changes.
+ * @returns {Promise<boolean>} True if email was sent successfully.
+ */
+export async function sendConsolidatedPurchaseEmail({
+  checkoutResults = [],
+  allProducts = [],
+  inStockProducts = [],
+  totalPagesChecked = 0,
+  newProducts = [],
+  stockIncreases = [],
+  priceHighlights = [],
+  walletBalanceBefore = null,
+  walletBalanceAfter = null,
+  skippedProducts = [],
+}) {
+  const successCount = checkoutResults.filter((r) => r.success && !r.smsVerificationRequired).length;
+  const smsCount = checkoutResults.filter((r) => r.smsVerificationRequired).length;
+  const failedCount = checkoutResults.filter((r) => !r.success && !r.smsVerificationRequired).length;
+  const hasInStock = inStockProducts.length > 0;
+  const hasPurchases = checkoutResults.length > 0;
+
+  // ── Build Subject Line ──
+  let subjectPrefix;
+  if (smsCount > 0) {
+    subjectPrefix = '📱 [SMS VERIFICATION REQUIRED]';
+  } else if (successCount > 0) {
+    subjectPrefix = '🛒✅ [PURCHASE CONFIRMED]';
+  } else if (failedCount > 0) {
+    subjectPrefix = '🛒⚠️ [PURCHASE ATTEMPTED]';
+  } else if (hasInStock) {
+    subjectPrefix = '🔥 [IN STOCK ALERT]';
+  } else {
+    subjectPrefix = '📦 [STOCK CHECK]';
+  }
+  const subject = `${subjectPrefix} ${successCount + smsCount} Triggered/Purchased, ${inStockProducts.length} In-Stock, ${allProducts.length} Total Items`;
+
+  // ── SECTION 1: Purchase Summary ──
+  let purchaseSectionHtml = '';
+  if (hasPurchases) {
+    const purchaseRows = checkoutResults.map((res, idx) => {
+      let statusColor = '#dc3545';
+      let statusIcon = '❌';
+      let statusLabel = 'FAILED';
+
+      if (res.smsVerificationRequired) {
+        statusColor = '#ffc107';
+        statusIcon = '📱';
+        statusLabel = 'SMS REQUIRED';
+      } else if (res.success) {
+        statusColor = '#28a745';
+        statusIcon = '✅';
+        statusLabel = 'PURCHASED';
+      }
+
+      const walletInfo = res.walletDecreased
+        ? `<br/><small style="color:#6c757d;">Wallet: ${res.walletBalanceBefore} → ${res.walletBalanceAfter} (Deducted: ${res.walletDeductionAmount})</small>`
+        : (res.walletSelected ? '<br/><small style="color:#6c757d;">Wallet: Selected (balance change unverified)</small>' : '');
+
+      const payButtonHtml = res.checkoutUrl ? `
+        <div style="margin-top: 8px;">
+          <a href="${res.checkoutUrl}" target="_blank" style="background-color: #f57224; color: #ffffff; padding: 6px 12px; border-radius: 4px; text-decoration: none; font-weight: bold; font-size: 12px; display: inline-block;">
+            👉 CLICK TO PAY / VIEW ORDER
+          </a>
+        </div>
+      ` : '';
+
+      return `
+        <tr style="border-bottom: 1px solid #e9ecef;">
+          <td style="padding: 12px; text-align: center; font-size: 13px; color: #6c757d;">${idx + 1}</td>
+          <td style="padding: 12px; font-weight: bold; color: #1a202c;">
+            ${res.productTitle}
+            ${payButtonHtml}
+          </td>
+          <td style="padding: 12px; text-align: right; font-weight: bold;">${res.productPrice || 'N/A'}</td>
+          <td style="padding: 12px; text-align: center;">
+            <span style="color: ${statusColor}; font-weight: bold;">${statusIcon} ${statusLabel}</span>
+            ${walletInfo}
+          </td>
+          <td style="padding: 12px; font-size: 12px; color: #4a5568;">
+            ${res.statusText || res.error || '-'}
+            ${res.checkoutUrl ? `<br/><small style="word-break: break-all; color: #3182ce;"><a href="${res.checkoutUrl}" target="_blank">Direct Order Link</a></small>` : ''}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    purchaseSectionHtml = `
+      <div style="margin-bottom: 25px; background: #d4edda; border-left: 6px solid #28a745; padding: 20px; border-radius: 6px;">
+        <h3 style="margin-top: 0; color: #155724; font-size: 18px;">🛒 AUTO-PURCHASE SUMMARY (${checkoutResults.length} item(s) attempted)</h3>
+        <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+          <span style="background: #28a745; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold;">✅ Success: ${successCount}</span>
+          ${smsCount > 0 ? `<span style="background: #ffc107; color: black; padding: 5px 12px; border-radius: 4px; font-weight: bold;">📱 SMS Code Sent: ${smsCount}</span>` : ''}
+          <span style="background: ${failedCount > 0 ? '#dc3545' : '#6c757d'}; color: white; padding: 5px 12px; border-radius: 4px; font-weight: bold;">❌ Failed: ${failedCount}</span>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 4px; overflow: hidden;">
+          <thead>
+            <tr style="background: #155724; color: white;">
+              <th style="padding: 10px; width: 5%; text-align: center;">#</th>
+              <th style="padding: 10px; width: 35%;">Product</th>
+              <th style="padding: 10px; width: 12%; text-align: right;">Price</th>
+              <th style="padding: 10px; width: 20%; text-align: center;">Status</th>
+              <th style="padding: 10px; width: 28%;">Details</th>
+            </tr>
+          </thead>
+          <tbody>${purchaseRows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  // ── SECTION 1B: Wallet Balance Summary ──
+  let walletSectionHtml = '';
+  if (walletBalanceBefore !== null) {
+    const deducted = walletBalanceAfter !== null ? (walletBalanceBefore - walletBalanceAfter) : 0;
+    walletSectionHtml = `
+      <div style="margin-bottom: 20px; background: #e8f4fd; border-left: 6px solid #2196F3; padding: 15px; border-radius: 6px;">
+        <h3 style="margin-top: 0; color: #1565C0; font-size: 16px;">💰 LAZADA WALLET BALANCE</h3>
+        <table style="border-collapse: collapse; font-size: 14px;">
+          <tr><td style="padding: 4px 12px 4px 0; color: #555;">Before Purchases:</td><td style="font-weight: bold;">$${walletBalanceBefore.toFixed(2)}</td></tr>
+          ${walletBalanceAfter !== null ? `<tr><td style="padding: 4px 12px 4px 0; color: #555;">After Purchases:</td><td style="font-weight: bold; color: #e53e3e;">$${walletBalanceAfter.toFixed(2)}</td></tr>` : ''}
+          ${walletBalanceAfter !== null ? `<tr><td style="padding: 4px 12px 4px 0; color: #555;">Total Deducted:</td><td style="font-weight: bold; color: #28a745;">$${deducted.toFixed(2)}</td></tr>` : ''}
+        </table>
+      </div>
+    `;
+  }
+
+  // ── SECTION 1C: Skipped Products (Too Expensive / Budget Exceeded) ──
+  let skippedSectionHtml = '';
+  if (skippedProducts.length > 0) {
+    skippedSectionHtml = `
+      <div style="margin-bottom: 20px; background: #fff3cd; border-left: 6px solid #ffc107; padding: 15px; border-radius: 6px;">
+        <h3 style="margin-top: 0; color: #856404; font-size: 16px;">⏭️ SKIPPED PRODUCTS — Insufficient Wallet Balance (${skippedProducts.length})</h3>
+        <ul style="margin: 0; padding-left: 20px;">
+          ${skippedProducts.map((s) => `
+            <li style="margin-bottom: 6px;">
+              <b>${s.product.title}</b> — Price: <b>${s.product.price}</b> | Reason: <i>${s.reason}</i>
+              (<a href="${s.product.url}" style="color: #856404;">View</a>)
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  // ── SECTION 2: Change Detection ──
+  let changesSectionHtml = '';
+
+  if (newProducts.length > 0) {
+    changesSectionHtml += `
+      <div style="margin-bottom: 15px; background: #ebf8ff; border-left: 5px solid #3182ce; padding: 15px; border-radius: 4px;">
+        <h4 style="margin-top: 0; color: #2b6cb0;">🆕 NEW PRODUCTS DETECTED (${newProducts.length})</h4>
+        <ul style="margin: 0; padding-left: 20px;">
+          ${newProducts.map((p) => `
+            <li style="margin-bottom: 6px;">
+              <b>${p.title}</b> — Price: <b>${p.price}</b> | Qty: <b>${p.quantity || p.stockQuantity}</b> | Status: <b>${p.stockStatus}</b>
+              (<a href="${p.url}" style="color: #3182ce;">View</a>)
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  if (stockIncreases.length > 0) {
+    changesSectionHtml += `
+      <div style="margin-bottom: 15px; background: #feebc8; border-left: 5px solid #dd6b20; padding: 15px; border-radius: 4px;">
+        <h4 style="margin-top: 0; color: #c05621;">📈 STOCK INCREASE / BACK IN STOCK (${stockIncreases.length})</h4>
+        <ul style="margin: 0; padding-left: 20px;">
+          ${stockIncreases.map((item) => `
+            <li style="margin-bottom: 6px;">
+              <b>${item.product.title}</b> — Price: <b>${item.product.price}</b> | Qty: <b>${item.product.quantity || item.product.stockQuantity}</b> | Reason: <b>${item.reason}</b>
+              (<a href="${item.product.url}" style="color: #dd6b20;">View</a>)
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  if (priceHighlights.length > 0) {
+    changesSectionHtml += `
+      <div style="margin-bottom: 15px; background: #e6fffa; border-left: 5px solid #319795; padding: 15px; border-radius: 4px;">
+        <h4 style="margin-top: 0; color: #234e52;">🏷️ PRICE CHANGES (${priceHighlights.length})</h4>
+        <ul style="margin: 0; padding-left: 20px;">
+          ${priceHighlights.map((h) => `
+            <li style="margin-bottom: 6px;">
+              <b>${h.product.title}</b>: <del>${h.oldPrice}</del> → <b>${h.newPrice}</b>
+              (<a href="${h.product.url}" style="color: #319795;">View</a>)
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    `;
+  }
+
+  // ── SECTION 3: Full Product Inventory Table ──
+  const tableRows = allProducts.map((p, index) => {
+    const isInStock = p.inStock === true;
+    const rowStyle = isInStock
+      ? 'background-color: #d4edda; border-bottom: 2px solid #28a745;'
+      : index % 2 === 0
+        ? 'background-color: #ffffff;'
+        : 'background-color: #f8f9fa;';
+    const statusBadge = isInStock
+      ? '<span style="background-color: #28a745; color: #ffffff; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">🔥 IN STOCK</span>'
+      : '<span style="color: #6c757d; font-size: 12px;">Out of Stock</span>';
+    const titleStyle = isInStock ? 'color: #155724; font-weight: bold;' : 'color: #212529;';
+    const priceStyle = isInStock ? 'color: #155724; font-weight: bold;' : 'color: #495057;';
+
+    return `
+      <tr style="${rowStyle}">
+        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 12px; color: #6c757d;">${index + 1}</td>
+        <td style="padding: 10px; border: 1px solid #dee2e6; ${titleStyle}">${p.title}</td>
+        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: right; ${priceStyle}">${p.price}</td>
+        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-weight: bold;">${p.quantity || p.stockQuantity || 'N/A'}</td>
+        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;">${statusBadge}</td>
+        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center; font-size: 12px; color: #495057;">${p.soldCount || '0'}</td>
+        <td style="padding: 10px; border: 1px solid #dee2e6; text-align: center;"><a href="${p.url}" style="color: #007bff; text-decoration: none; font-weight: bold;">View</a></td>
+      </tr>
+    `;
+  }).join('');
+
+  // ── Assemble Full HTML Email ──
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 950px; background: #ffffff; margin: 0 auto; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { border-bottom: 3px solid #2b6cb0; padding-bottom: 15px; margin-bottom: 25px; }
+        .header h2 { margin: 0; color: #1a202c; font-size: 22px; }
+        .stats-bar { display: flex; gap: 15px; margin-bottom: 20px; background: #edf2f7; padding: 12px; border-radius: 6px; flex-wrap: wrap; }
+        .stat-item { font-size: 14px; color: #4a5568; }
+        .stat-item b { color: #2d3748; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+        th { background-color: #2b6cb0; color: #ffffff; padding: 10px; text-align: left; border: 1px solid #2b6cb0; font-size: 12px; text-transform: uppercase; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h2>📊 Lazada Bot — Consolidated Stock & Purchase Report</h2>
+        </div>
+
+        <div class="stats-bar">
+          <div class="stat-item"><b>Pages Scraped:</b> ${totalPagesChecked}</div> |
+          <div class="stat-item"><b>Total Items:</b> ${allProducts.length}</div> |
+          <div class="stat-item"><b>In-Stock:</b> <span style="color: ${hasInStock ? '#28a745' : '#e53e3e'}; font-weight: bold;">${inStockProducts.length}</span></div> |
+          <div class="stat-item"><b>Purchased:</b> <span style="color: ${successCount > 0 ? '#28a745' : '#6c757d'}; font-weight: bold;">${successCount}</span></div>
+          ${smsCount > 0 ? `| <div class="stat-item"><b>📱 SMS Required:</b> <span style="color: #ffc107; font-weight: bold;">${smsCount}</span></div>` : ''}
+        </div>
+
+        ${purchaseSectionHtml}
+        ${walletSectionHtml}
+        ${skippedSectionHtml}
+        ${changesSectionHtml}
+
+        <h3 style="color: #2b6cb0; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">📦 Full Product Inventory (${allProducts.length} items)</h3>
+        ${hasInStock ? `
+          <div style="background-color: #d4edda; border-left: 4px solid #28a745; padding: 12px; margin-bottom: 15px; border-radius: 4px; color: #155724; font-weight: bold;">
+            🚨 ALERT: ${inStockProducts.length} item(s) are currently IN STOCK! Check the highlighted green rows below.
+          </div>
+        ` : ''}
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 5%; text-align: center;">#</th>
+              <th style="width: 35%;">Product Title</th>
+              <th style="width: 10%; text-align: right;">Price</th>
+              <th style="width: 12%; text-align: center;">Quantity</th>
+              <th style="width: 13%; text-align: center;">Stock Status</th>
+              <th style="width: 10%; text-align: center;">Sold</th>
+              <th style="width: 10%; text-align: center;">Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+
+        <p style="margin-top: 25px; font-size: 12px; color: #a0aec0; text-align: center;">
+          Report generated automatically by Lazada Bot at ${new Date().toLocaleString('en-SG', { timeZone: 'Asia/Singapore' })}
         </p>
       </div>
     </body>

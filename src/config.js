@@ -1,19 +1,29 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+// Initialize dotenv to populate process.env from .env file
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const CONFIG = {
-  TARGET_URL: 'https://www.lazada.sg/pokemon-store-online-singapore/?spm=a2o42.10453684.0.0.28e55edf7xRX14&q=All-Products&shop_category_ids=762252&from=wangpu&sc=KVUG&search_scenario=store&src=store_sections&hideSectionHeader=true&shopId=2056827',
+  TARGET_URL: process.env.TARGET_URL || 'https://www.lazada.sg/pokemon-store-online-singapore/?spm=a2o42.10453684.0.0.28e55edf7xRX14&q=All-Products&shop_category_ids=762252&from=wangpu&sc=KVUG&search_scenario=store&src=store_sections&hideSectionHeader=true&shopId=2056827',
 
   // API Parameters
-  SHOP_ID: '2056827',
-  SHOP_CATEGORY_ID: '762252',
-  MAX_API_PAGES: 10,
+  SHOP_ID: process.env.SHOP_ID !== undefined && process.env.SHOP_ID !== '' ? process.env.SHOP_ID : '',
+  SHOP_CATEGORY_ID: process.env.SHOP_CATEGORY_ID !== undefined && process.env.SHOP_CATEGORY_ID !== '' ? process.env.SHOP_CATEGORY_ID : '',
+  MAX_API_PAGES: parseInt(process.env.MAX_API_PAGES || '10', 10),
+
+  // Auto Checkout Flags
+  AUTO_BUY_ENABLED: process.env.AUTO_BUY_ENABLED !== 'false',
+  USE_LAZADA_POINTS: process.env.USE_LAZADA_POINTS !== 'false',
+  PAYMENT_METHOD: (process.env.PAYMENT_METHOD || 'LAZADA_WALLET').toUpperCase(),
+  TEST_LIMIT_PRODUCTS: parseInt(process.env.TEST_LIMIT_PRODUCTS || '0', 10),
 
   // Scheduler / CRON Settings
-  CRON_INTERVAL_MINUTES: parseFloat(process.env.CRON_INTERVAL_MINUTES || '2'), // Interval in minutes (1 to 5 minutes)
+  CRON_INTERVAL_MINUTES: parseFloat(process.env.CRON_INTERVAL_MINUTES || '2'),
 
   DATA_DIR: path.join(__dirname, '../data'),
   HISTORY_DIR: path.join(__dirname, '../data/product_history'),
@@ -23,14 +33,14 @@ export const CONFIG = {
 
   // Email Notification Settings (Nodemailer)
   EMAIL: {
-    SERVICE: 'gmail',
-    USER: 'sctechnology100@gmail.com',
-    PASS: 'ermzmxxflarrmbbq',
-    RECIPIENT: 'dikamahar884@gmail.com, Keithchia1109@gmail.com,agek002@gmail.com'
+    SERVICE: process.env.EMAIL_SERVICE || 'gmail',
+    USER: process.env.EMAIL_USER || '',
+    PASS: process.env.EMAIL_PASS || '',
+    RECIPIENT: process.env.EMAIL_RECIPIENT || ''
   },
 
   // Browser Settings
-  HEADLESS: false,
+  HEADLESS: process.env.HEADLESS === 'true',
   TIMEOUT: 60000,
 
   USER_AGENTS: [

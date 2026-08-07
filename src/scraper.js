@@ -80,7 +80,19 @@ export async function scrapeLazadaProductsViaAPI() {
 
     // Step 3: Fetch API paginated items in-browser
     while (hasMorePages && currentPage <= CONFIG.MAX_API_PAGES) {
-      const apiUrl = `https://www.lazada.sg/pokemon-store-online-singapore/?ajax=true&from=wangpu&hideSectionHeader=true&isFirstRequest=${currentPage === 1}&page=${currentPage}&q=All-Products&sc=KVUG&search_scenario=store&service=store_sections&shopId=${CONFIG.SHOP_ID}&shop_category_ids=${CONFIG.SHOP_CATEGORY_ID}&src=store_sections`;
+      // Dynamically extract the base store URL from CONFIG.TARGET_URL (populated via process.env.TARGET_URL)
+      const targetUrlObj = new URL(CONFIG.TARGET_URL);
+      const baseUrl = `${targetUrlObj.origin}${targetUrlObj.pathname}`;
+      
+      const apiSearchParams = new URLSearchParams(targetUrlObj.searchParams);
+      apiSearchParams.set('ajax', 'true');
+      apiSearchParams.set('page', String(currentPage));
+      apiSearchParams.set('isFirstRequest', String(currentPage === 1));
+      
+      if (CONFIG.SHOP_ID) apiSearchParams.set('shopId', CONFIG.SHOP_ID);
+      if (CONFIG.SHOP_CATEGORY_ID) apiSearchParams.set('shop_category_ids', CONFIG.SHOP_CATEGORY_ID);
+      
+      const apiUrl = `${baseUrl}?${apiSearchParams.toString()}`;
 
       console.log(`[Scraper] Fetching API page ${currentPage}: ${apiUrl}`);
 

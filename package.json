@@ -11,12 +11,14 @@
     "import-cookies": "node src/import-cookies.js",
     "refresh-session": "node src/session-refresh.js",
     "auto-refresh": "node src/session-scheduler.js",
+    "open-browser": "node src/open-session-browser.js",
     "session-status": "node -e \"import('./src/session-utils.js').then(m => { const s = m.readSessionStatus(); console.log(s ? JSON.stringify(s, null, 2) : 'No session status found.'); })\""
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
+    "nodemailer": "^6.9.10",
     "playwright": "^1.40.0",
     "playwright-extra": "^4.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2",
-    "nodemailer": "^6.9.10"
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   }
 }

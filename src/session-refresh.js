@@ -1,7 +1,7 @@
 import { chromium } from 'playwright-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { CONFIG } from './config.js';
-import { writeSessionStatus } from './session-utils.js';
+import { writeSessionStatus, importCookiesFromJSON } from './session-utils.js';
 import {
   randomDelay,
   readingPause,
@@ -84,6 +84,10 @@ async function refreshSession() {
       locale: 'en-SG',
       timezoneId: 'Asia/Singapore',
     });
+
+    // Inject cookies from cookies.json automatically before page navigation
+    console.log('[Refresh] Injecting session cookies from cookies.json...');
+    await importCookiesFromJSON(context);
 
     const page = context.pages()[0] || await context.newPage();
 

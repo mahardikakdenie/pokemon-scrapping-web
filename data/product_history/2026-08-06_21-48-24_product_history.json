@@ -1,0 +1,30 @@
+[
+  {
+    "id": "13825271683",
+    "title": "Made To Bloom Trial 1",
+    "price": "$1.00",
+    "originalPrice": "$1.00",
+    "stockStatus": "In Stock",
+    "quantity": "Available (1+)",
+    "stockQuantity": "Available (1+)",
+    "inStock": true,
+    "url": "https://www.lazada.sg/products/pdp-i13825271683.html",
+    "imageUrl": "https://sg-live-01.slatic.net/p/8085518a1b1a9797d9957e10eb1234fc.jpg",
+    "soldCount": "0 sold",
+    "scrapedAt": "2026-08-06T21:48:20.755Z"
+  },
+  {
+    "id": "3532543319",
+    "title": "Hydraglow Lip Salve Sample Kit",
+    "price": "$5.00",
+    "originalPrice": "$10.00",
+    "stockStatus": "In Stock",
+    "quantity": "Available (1+)",
+    "stockQuantity": "Available (1+)",
+    "inStock": true,
+    "url": "https://www.lazada.sg/products/pdp-i3532543319.html",
+    "imageUrl": "https://sg-live-01.slatic.net/p/81733f4cfc64297a4e53b4684555fb5b.jpg",
+    "soldCount": "0 sold",
+    "scrapedAt": "2026-08-06T21:48:20.755Z"
+  }
+]

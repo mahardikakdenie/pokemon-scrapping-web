@@ -141,3 +141,35 @@ export function displayProductTable(products) {
   console.table(tableData);
   console.log('====================================================================================================\n');
 }
+
+const PURCHASED_HISTORY_FILE = path.join(CONFIG.DATA_DIR, 'purchased_products.json');
+
+/**
+ * Loads the set of product IDs that have already been attempted/purchased.
+ * @returns {Set<string>}
+ */
+export function loadPurchasedProductIds() {
+  ensureDataDirsExist();
+  if (fs.existsSync(PURCHASED_HISTORY_FILE)) {
+    try {
+      const raw = fs.readFileSync(PURCHASED_HISTORY_FILE, 'utf-8');
+      const list = JSON.parse(raw);
+      return new Set(list);
+    } catch (e) {
+      console.warn('[Storage] Could not parse purchased_products.json.');
+    }
+  }
+  return new Set();
+}
+
+/**
+ * Saves a new product ID to the purchased products history.
+ * @param {string} productId 
+ */
+export function recordPurchasedProductId(productId) {
+  ensureDataDirsExist();
+  const set = loadPurchasedProductIds();
+  set.add(productId);
+  fs.writeFileSync(PURCHASED_HISTORY_FILE, JSON.stringify(Array.from(set), null, 2), 'utf-8');
+  console.log(`[Storage] Recorded product ID ${productId} to purchased_products.json`);
+}
