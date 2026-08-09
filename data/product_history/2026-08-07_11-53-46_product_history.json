@@ -1,5 +1,5 @@
-{
-  "13664788472": {
+[
+  {
     "id": "13664788472",
     "title": "Pokémon Center Trading Card Game: Mega Evolution: Perfect Order Sleeved Booster [Limit 10 per person]",
     "price": "$6.90",
@@ -11,9 +11,9 @@
     "url": "https://www.lazada.sg/products/pdp-i13664788472.html",
     "imageUrl": "https://filebroker-cdn.lazada.sg/kf/Se3144c5fb6904e4cb3d941ef93dd60faP.jpg",
     "soldCount": "14.7K sold",
-    "scrapedAt": "2026-08-07T12:03:32.652Z"
+    "scrapedAt": "2026-08-07T11:53:34.616Z"
   },
-  "13773062548": {
+  {
     "id": "13773062548",
     "title": "Pokémon Trading Card Game: Mega Evolution - Pitch Black Sleeved Boosters [Limit 10 per person]",
     "price": "$6.90",
@@ -25,6 +25,6 @@
     "url": "https://www.lazada.sg/products/pdp-i13773062548.html",
     "imageUrl": "https://filebroker-cdn.lazada.sg/kf/Sab8ce2ef4e594b9f92679f026064d754R.jpg",
     "soldCount": "9.0K sold",
-    "scrapedAt": "2026-08-07T12:03:32.652Z"
+    "scrapedAt": "2026-08-07T11:53:34.616Z"
   }
-}
+]
