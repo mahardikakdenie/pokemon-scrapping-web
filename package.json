@@ -6,9 +6,11 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
+    "bot": "node src/index.js",
     "scrape": "node src/scraper.js",
     "warm-session": "node src/warm-session.js",
     "import-cookies": "node src/import-cookies.js",
+    "refresh": "node src/session-refresh.js",
     "refresh-session": "node src/session-refresh.js",
     "auto-refresh": "node src/session-scheduler.js",
     "open-browser": "node src/open-session-browser.js",

@@ -6,7 +6,7 @@ An automated NodeJS application for tracking product stock and price changes on 
 
 ## Table of Contents
 - [Prerequisites](#prerequisites)
-- [Installation](#installation)
+- [Installation & Quick Start](#installation--quick-start)
 - [Environment Variables (.env)](#environment-variables-env)
 - [NPM Scripts & Command Reference](#npm-scripts--command-reference)
 - [Session Management Workflow](#session-management-workflow)
@@ -21,20 +21,45 @@ An automated NodeJS application for tracking product stock and price changes on 
 
 ---
 
-## Installation
+## Installation & Quick Start
 
-1. Clone the repository and navigate to the project directory:
-   ```bash
-   cd scrapping-web
-   ```
-2. Install project dependencies:
-   ```bash
-   npm install
-   ```
-3. Create your `.env` configuration file from `.env.example`:
-   ```bash
-   cp .env.example .env
-   ```
+Follow this step-by-step workflow to get the bot up and running quickly for first-time users.
+
+### Step 1: Clone Repository
+Navigate to the root project directory:
+```bash
+cd scrapping-web
+```
+
+### Step 2: Install Dependencies
+Install all required Node.js libraries and Playwright dependencies:
+```bash
+npm install
+```
+
+### Step 3: Configure Environment
+Copy `.env.example` to create your local `.env` configuration file:
+```bash
+cp .env.example .env
+```
+*(Optionally open `.env` to customize recipient email or target URL settings).*
+
+### Step 4: Initialize or Refresh Session
+- **First-Time Users**: Run the interactive session warm-up command to log in to your Lazada SG account manually:
+  ```bash
+  npm run warm-session
+  ```
+- **Session Refresh**: Refresh your existing authentication session:
+  ```bash
+  npm run refresh
+  ```
+
+### Step 5: Start the Bot
+Launch the main periodic scraper and automated purchasing engine:
+```bash
+npm run bot
+```
+*(Note: You can also use `npm start`).*
 
 ---
 
@@ -97,11 +122,11 @@ Execute these commands using `npm run <command-name>` or `npm start`.
 
 | Command | Executed Script | Description & Purpose |
 | :--- | :--- | :--- |
-| `npm start` | `node src/index.js` | **Main Runner**: Starts scheduled periodic automated scraping, checks stock changes, sends alerts, and executes checkout routines. |
+| `npm run bot` / `npm start` | `node src/index.js` | **Main Runner**: Starts scheduled periodic automated scraping, checks stock changes, sends alerts, and executes checkout routines. |
 | `npm run scrape` | `node src/scraper.js` | **Single Scrape Run**: Performs a one-time product scrape and stock check without recurring scheduler loop. |
 | `npm run warm-session` | `node src/warm-session.js` | **Session Initializer**: Launches an interactive browser window to manually log in to Lazada and save session cookies/tokens to `.browser-session`. |
 | `npm run import-cookies` | `node src/import-cookies.js` | **Cookie Importer**: Imports pre-existing session cookies directly into local session storage. |
-| `npm run refresh-session` | `node src/session-refresh.js` | **Session Refresher**: Refreshes current authentication token and browser state to prevent session expiration. |
+| `npm run refresh` / `npm run refresh-session` | `node src/session-refresh.js` | **Session Refresher**: Refreshes current authentication token and browser state to prevent session expiration. |
 | `npm run auto-refresh` | `node src/session-scheduler.js` | **Background Session Daemon**: Runs a continuous background timer to automatically refresh session cookies at regular intervals. |
 | `npm run open-browser` | `node src/open-session-browser.js` | **Debug Browser**: Opens a GUI browser instance loaded with saved `.browser-session` credentials for manual verification. |
 | `npm run session-status` | Inline Node Snippet | **Session Monitor**: Inspects and logs current session status, creation timestamps, and age to terminal. |
