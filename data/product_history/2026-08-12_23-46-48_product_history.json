@@ -1,5 +1,5 @@
-{
-  "13664788472": {
+[
+  {
     "id": "13664788472",
     "title": "Pokémon Center Trading Card Game: Mega Evolution: Perfect Order Sleeved Booster [Limit 10 per person]",
     "price": "$6.90",
@@ -13,7 +13,7 @@
     "soldCount": "14.7K sold",
     "scrapedAt": "2026-08-12T23:46:39.599Z"
   },
-  "13773062548": {
+  {
     "id": "13773062548",
     "title": "Pokémon Trading Card Game: Mega Evolution - Pitch Black Sleeved Boosters [Limit 10 per person]",
     "price": "$6.90",
@@ -27,4 +27,4 @@
     "soldCount": "9.0K sold",
     "scrapedAt": "2026-08-12T23:46:39.600Z"
   }
-}
+]
